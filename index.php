@@ -1,44 +1,67 @@
 <?php
 include "db.php";
 $catRes = $conn->query("SELECT * FROM categories ORDER BY name ASC");
-$newsRes = $conn->query("SELECT n.*, c.name AS category_name, nc.view_count
-                         FROM news n
-                         JOIN categories c ON n.category_id = c.id
-                         JOIN newscounter nc ON nc.news_id = n.id
-                         WHERE n.is_published = 1
-                         ORDER BY id DESC;
-                         ");
-$sidebarRes = $conn->query("
-SELECT n.*, c.name AS category_name, nc.view_count
+$newsRes = $conn->query("SELECT 
+    n.*,
+    c.name AS category_name,
+    SUM(nc.view_count) AS view_count      -- or MAX(...) if you only want the latest
 FROM news n
 JOIN categories c ON n.category_id = c.id
 JOIN newscounter nc ON nc.news_id = n.id
 WHERE n.is_published = 1
-ORDER BY nc.view_count DESC
-LIMIT 5
+  AND n.is_hotnews = 0
+GROUP BY n.id
+ORDER BY n.id DESC;
+
+                         ");
+$sidebarRes = $conn->query("
+SELECT 
+    n.*,
+    c.name AS category_name,
+    SUM(nc.view_count) AS view_count         -- or MAX(nc.view_count)
+FROM news n
+JOIN categories c ON n.category_id = c.id
+JOIN newscounter nc ON nc.news_id = n.id
+WHERE n.is_published = 1
+GROUP BY n.id
+ORDER BY view_count DESC
+LIMIT 5;
+
 ");
 
-$breakingnews = $conn->query("SELECT n.*, c.name AS category_name, nc.view_count 
+$breakingnews = $conn->query("SELECT 
+    n.*, 
+    c.name AS category_name, 
+    MAX(nc.view_count) AS view_count
 FROM news n
 JOIN categories c ON n.category_id = c.id
 JOIN newscounter nc ON nc.news_id = n.id
-WHERE n.is_published = 1 
-  AND c.name = 'HOT'
-ORDER BY id DESC
-LIMIT 1
+WHERE n.is_published = 1
+  AND n.is_hotnews = 1
+GROUP BY n.id
+ORDER BY n.id DESC
+LIMIT 3;
 ");
 $topRes = $conn->query("
-SELECT n.*, c.name AS category_name, nc.view_count
+SELECT 
+    n.*,
+    c.name AS category_name,
+    MAX(nc.view_count) AS view_count
 FROM news n
 JOIN categories c ON n.category_id = c.id
 JOIN newscounter nc ON nc.news_id = n.id
-WHERE n.is_published = 1 
-  AND c.name <> 'HOT'
-ORDER BY id DESC
+WHERE n.is_published = 1
+GROUP BY n.id
+ORDER BY n.id DESC
 LIMIT 3;
 
 ");
 $newsRes->data_seek(10); // Skip the first 9 articles for the featured section
+
+$newsItems = [];
+while ($row = $breakingnews->fetch_assoc()) {
+    $newsItems[] = $row;
+}
 ?>
 
 <!DOCTYPE html>
@@ -48,6 +71,10 @@ $newsRes->data_seek(10); // Skip the first 9 articles for the featured section
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BeritaKu</title>
+    <link
+  rel="stylesheet"
+  href="swiper.min.css"
+/>
     <!-- <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet"> -->
     <script src="./tailwind.js"></script>
     <script>
@@ -121,6 +148,39 @@ $newsRes->data_seek(10); // Skip the first 9 articles for the featured section
             font-size: 0.95rem;
             margin-left: 20px;
         }
+        /* Force same height for hotnews slides only */
+.hotnews-card {
+  height: 450px;                  /* adjust as you like */
+  display: flex;
+  flex-direction: column;
+}
+
+.hotnews-card .md\:flex {
+  flex: 1;
+  overflow: hidden;
+}
+
+.hotnews-card img {
+  height: 100%;
+  object-fit: cover;
+}
+
+.hotnews-card .md\:w-1\/2 {
+  display: flex;
+  flex-direction: column;
+}
+
+.hotnews-card p {
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+/* Keep slides aligned */
+.swiper-slide {
+  display: flex;
+  align-items: stretch;
+}
+
     </style>
 </head>
 
@@ -202,50 +262,61 @@ $newsRes->data_seek(10); // Skip the first 9 articles for the featured section
 
             <!-- Featured Article -->
 
-            <?php $featured = $breakingnews->fetch_assoc(); ?>
-            <div class="mb-8">
-                <article class="news-card bg-card-bg rounded-xl overflow-hidden shadow-md">
-                    <div class="md:flex">
-                        <div class="md:w-1/2">
-                            <img src="<?= htmlspecialchars($featured['cover_image'] ?? '/placeholder.svg?height=200&width=400') ?>" alt="<?= htmlspecialchars($featured['title']) ?>" class="w-full h-64 md:h-full object-cover">
-                        </div>
-                        <div class="md:w-1/2 p-6 md:p-8">
-                            <span class="category-tag bg-red-500 text-white px-3 py-1 rounded-full">
-                                <?php echo $featured["category_name"]; ?>
+            <div class="swiper mySwiper mb-8">
+            <div class="swiper-wrapper">
+    <?php foreach ($newsItems as $featured): ?>
+        <div class="swiper-slide">
+            <article class="hotnews-card bg-card-bg rounded-xl overflow-hidden shadow-md">
+                <div class="md:flex">
+                    <div class="md:w-1/2">
+                        <img src="<?= htmlspecialchars($featured['cover_image'] ?? '/placeholder.svg?height=200&width=400') ?>"
+                             alt="<?= htmlspecialchars($featured['title']) ?>"
+                             class="w-400 h-400 md:h-full object-cover">
+                    </div>
+
+                    <div class="md:w-1/2 p-6 md:p-8 h-370">
+                        <span class="category-tag bg-red-500 text-white px-3 py-1 rounded-full">
+                            <?= htmlspecialchars($featured["category_name"]) ?>
+                        </span>
+
+                        <h3 class="text-2xl md:text-3xl font-montserrat font-black text-primary mt-4 mb-3">
+                            <?= htmlspecialchars($featured["title"]) ?>
+                        </h3>
+
+                        <p class="text-secondary mb-4 leading-relaxed">
+                            <?= mb_strimwidth($featured["content"], 0, 300, "..."); ?>
+                        </p>
+
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500">
+                                <?= date("M d, Y H:i", strtotime($featured["created_at"])) ?>
+                                <span class="views">
+                                    <svg class="icon-eye" viewBox="0 0 24 24" width="16" height="16">
+                                        <title>Views</title>
+                                        <path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" />
+                                        <circle cx="12" cy="12" r="2.5" />
+                                    </svg>
+                                    <?= (int)$featured['view_count']; ?>
+                                </span>
                             </span>
 
-                            <h3 class="text-2xl md:text-3xl font-montserrat font-black text-primary mt-4 mb-3">
-                                <?php echo $featured["title"]; ?>
-                            </h3>
-
-                            <p class="text-secondary mb-4 leading-relaxed">
-                                <?php echo mb_strimwidth($featured["content"], 0, 300, "..."); ?>
-                            </p>
-
-
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-gray-500">
-                                    <?php echo date("M d, Y H:i", strtotime($featured["created_at"])); ?>
-                                    <span class="views">
-                                        <!-- inline eye SVG -->
-                                        <svg class="icon-eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="16" height="16">
-                                            <title>Views</title>
-                                            <path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" />
-                                            <circle cx="12" cy="12" r="2.5" />
-                                        </svg>
-
-                                        <?php echo (int)$featured['view_count']; ?>
-                                    </span>
-                                </span>
-                                <a href="news.php?slug=<?= $featured['slug'] ?>"
-                                    class="read-more-btn bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium">
-                                    Baca Selengkapnya
-                                </a>
-                            </div>
+                            <a href="news.php?slug=<?= urlencode($featured['slug']) ?>"
+                               class="read-more-btn bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium">
+                               Baca Selengkapnya
+                            </a>
                         </div>
                     </div>
-                </article>
-            </div>
+                </div>
+            </article>
+        </div>
+    <?php endforeach; ?>
+</div>
+
+    <!-- Slider Controls -->
+    <div class="swiper-pagination"></div>
+    <div class="swiper-button-next"></div>
+    <div class="swiper-button-prev"></div>
+</div>
 
             <!-- News Grid -->
             <div id="news-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -403,41 +474,43 @@ $newsRes->data_seek(10); // Skip the first 9 articles for the featured section
 
     <!-- Footer -->
     <footer class="bg-primary text-white py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div>
-                    <h3 class="text-xl font-montserrat font-black mb-4">BeritaKu</h3>
-                    <p class="text-sm opacity-90">Berita Terkini yang bisa diakses kapanpun</p>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Kategori</h4>
-                    <ul class="space-y-2 text-sm opacity-90">
-                        <?php $catRes->data_seek(0); // Reset the result set pointer to the beginning 
-                        ?>
-                        <?php while ($cat = $catRes->fetch_assoc()): ?>
-                            <?php if ($cat['slug'] == "hot") continue; ?>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <!-- Brand -->
+      <div>
+        <h3 class="text-xl font-montserrat font-black mb-4">BeritaKu</h3>
+        <p class="text-sm opacity-90">Berita Terkini yang bisa diakses kapanpun</p>
+      </div>
 
-                            <li><a href="category.php?slug=<?= urlencode($cat['slug']) ?>"
-                                    class="hover:opacity-100">
-                                    <?= htmlspecialchars($cat['name']) ?>
-                                </a></li>
-                        <?php endwhile; ?>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Ikuti Kami</h4>
-                    <div class="flex space-x-4">
-                        <a href="#" class="hover:opacity-100 opacity-90">Twitter</a>
-                        <a href="#" class="hover:opacity-100 opacity-90">Facebook</a>
-                        <a href="#" class="hover:opacity-100 opacity-90">LinkedIn</a>
-                    </div>
-                </div>
-            </div>
-            <div class="border-t border-white border-opacity-20 mt-8 pt-8 text-center text-sm opacity-90">
-                <p>&copy; 2025 BeritaKu. All rights reserved.</p>
-            </div>
+      <!-- Kategori (centered) -->
+      <div class="md:col-span-2 text-center">
+        <h4 class="font-semibold mb-4">Kategori</h4>
+        <ul class="flex flex-wrap justify-center gap-4 text-sm opacity-90">
+          <?php $catRes->data_seek(0); ?>
+          <?php while ($cat = $catRes->fetch_assoc()): ?>
+            <?php if ($cat['slug'] == "hot") continue; ?>
+            <li>
+              <a href="category.php?slug=<?= urlencode($cat['slug']) ?>"
+                 class="hover:opacity-100">
+                 <?= htmlspecialchars($cat['name']) ?>
+              </a>
+            </li>
+          <?php endwhile; ?>
+        </ul>
+      </div>
+
+      <!-- Ikuti Kami (Right-aligned) -->
+      <div class="md:ml-auto md:text-right">
+        <h4 class="font-semibold mb-4">Ikuti Kami</h4>
+        <div class="flex md:justify-end space-x-4">
+          <a href="#" class="hover:opacity-100 opacity-90">Twitter</a>
+          <a href="#" class="hover:opacity-100 opacity-90">Facebook</a>
+          <a href="#" class="hover:opacity-100 opacity-90">LinkedIn</a>
         </div>
-    </footer>
+      </div>
+    </div>
+  </div>
+</footer>
     <script src="./jquery.min.js"></script>
     <script>
         $(function() {
@@ -576,6 +649,26 @@ $newsRes->data_seek(10); // Skip the first 9 articles for the featured section
             observer.observe(article);
         });
     </script>
+    <script src="swiper.min.js"></script>
+    <script>
+const swiper = new Swiper(".mySwiper", {
+  loop: true,
+  slidesPerView: 1,
+  spaceBetween: 20,
+  autoplay: {
+    delay: 5000,
+    disableOnInteraction: false,
+  },
+  pagination: {
+    el: ".swiper-pagination",
+    clickable: true,
+  },
+  navigation: {
+    nextEl: ".swiper-button-next",
+    prevEl: ".swiper-button-prev",
+  },
+});
+</script>
 </body>
 
 </html>

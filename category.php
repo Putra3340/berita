@@ -2,12 +2,17 @@
 include 'db.php';
 
 $catRes = $conn->query("SELECT * FROM categories ORDER BY name ASC");
-$newsRes = $conn->query("SELECT n.*, c.name AS category_name, nc.view_count 
-                         FROM news n
-                         JOIN categories c ON n.category_id = c.id
-                        JOIN newscounter nc ON nc.news_id = n.id
-                         WHERE n.is_published = 1
-                         ORDER BY n.created_at DESC
+$newsRes = $conn->query("SELECT 
+    n.*,
+    c.name AS category_name,
+    SUM(nc.view_count) AS view_count      -- or MAX(nc.view_count) if you just want the highest count
+FROM news n
+JOIN categories c ON n.category_id = c.id
+JOIN newscounter nc ON nc.news_id = n.id
+WHERE n.is_published = 1
+GROUP BY n.id
+ORDER BY n.created_at DESC;
+
                          ");
 
 $slug = $_GET['slug'] ?? '';
@@ -27,24 +32,31 @@ if (!$category) {
 }
 
 // Get news in category
-$stmt = $conn->prepare("SELECT n.*, nc.view_count 
-    FROM news n
-    LEFT JOIN newscounter nc ON nc.news_id = n.id
-    WHERE n.category_id = ?
-    ORDER BY n.created_at DESC");
+$stmt = $conn->prepare("SELECT n.*, SUM(nc.view_count) AS view_count
+FROM news n
+LEFT JOIN newscounter nc ON nc.news_id = n.id
+WHERE n.category_id = ?
+GROUP BY n.id
+ORDER BY n.created_at DESC
+");
 $stmt->bind_param("i", $category['id']);
 $stmt->execute();
 $newsRes = $stmt->get_result();
 $stmt->close();
 
 $sidebarRes = $conn->query("
-SELECT n.*, c.name AS category_name, nc.view_count
+SELECT 
+    n.*,
+    c.name AS category_name,
+    SUM(nc.view_count) AS view_count         -- or MAX(nc.view_count)
 FROM news n
 JOIN categories c ON n.category_id = c.id
 JOIN newscounter nc ON nc.news_id = n.id
 WHERE n.is_published = 1
-ORDER BY nc.view_count DESC
-LIMIT 5
+GROUP BY n.id
+ORDER BY view_count DESC
+LIMIT 5;
+
 ");
 ?>
 <!DOCTYPE html>
@@ -298,40 +310,43 @@ LIMIT 5
 
     <!-- Footer -->
     <footer class="bg-primary text-white py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div>
-                    <h3 class="text-xl font-montserrat font-black mb-4">BeritaKu</h3>
-                    <p class="text-sm opacity-90">Berita Terkini yang bisa diakses kapanpun</p>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Kategori</h4>
-                    <ul class="space-y-2 text-sm opacity-90">
-                        <?php $catRes->data_seek(0); // Reset the result set pointer to the beginning ?>
-                        <?php while ($cat = $catRes->fetch_assoc()): ?>
-                        <?php if ($cat['slug'] == "hot") continue; ?>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <!-- Brand -->
+      <div>
+        <h3 class="text-xl font-montserrat font-black mb-4">BeritaKu</h3>
+        <p class="text-sm opacity-90">Berita Terkini yang bisa diakses kapanpun</p>
+      </div>
 
-                        <li><a href="category.php?slug=<?= urlencode($cat['slug']) ?>"
-                            class="hover:opacity-100">
-                            <?= htmlspecialchars($cat['name']) ?>
-                        </a></li>
-                    <?php endwhile; ?>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Ikuti Kami</h4>
-                    <div class="flex space-x-4">
-                        <a href="#" class="hover:opacity-100 opacity-90">Twitter</a>
-                        <a href="#" class="hover:opacity-100 opacity-90">Facebook</a>
-                        <a href="#" class="hover:opacity-100 opacity-90">LinkedIn</a>
-                    </div>
-                </div>
-            </div>
-            <div class="border-t border-white border-opacity-20 mt-8 pt-8 text-center text-sm opacity-90">
-                <p>&copy; 2025 BeritaKu. All rights reserved.</p>
-            </div>
+      <!-- Kategori (centered) -->
+      <div class="md:col-span-2 text-center">
+        <h4 class="font-semibold mb-4">Kategori</h4>
+        <ul class="flex flex-wrap justify-center gap-4 text-sm opacity-90">
+          <?php $catRes->data_seek(0); ?>
+          <?php while ($cat = $catRes->fetch_assoc()): ?>
+            <?php if ($cat['slug'] == "hot") continue; ?>
+            <li>
+              <a href="category.php?slug=<?= urlencode($cat['slug']) ?>"
+                 class="hover:opacity-100">
+                 <?= htmlspecialchars($cat['name']) ?>
+              </a>
+            </li>
+          <?php endwhile; ?>
+        </ul>
+      </div>
+
+      <!-- Ikuti Kami (Right-aligned) -->
+      <div class="md:ml-auto md:text-right">
+        <h4 class="font-semibold mb-4">Ikuti Kami</h4>
+        <div class="flex md:justify-end space-x-4">
+          <a href="#" class="hover:opacity-100 opacity-90">Twitter</a>
+          <a href="#" class="hover:opacity-100 opacity-90">Facebook</a>
+          <a href="#" class="hover:opacity-100 opacity-90">LinkedIn</a>
         </div>
-    </footer>
+      </div>
+    </div>
+  </div>
+</footer>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script>
 $(function(){

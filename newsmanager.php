@@ -14,6 +14,7 @@ if (isset($_POST['add_news'])) {
   $category_id = $_POST['category_id'];
   $tags = $_POST['tags'];
   $is_published = isset($_POST['is_published']) ? 1 : 0;
+  $is_hotnews = isset($_POST['is_hotnews']) ? 1 : 0;
 
   // Handle file upload
   $cover_image = null;
@@ -25,19 +26,19 @@ if (isset($_POST['add_news'])) {
   }
 
   $stmt = $conn->prepare("
-    INSERT INTO news (user_id, category_id, title, slug, content, cover_image, tags, is_published) 
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO news (user_id, category_id, title, slug, content, cover_image, tags, is_published,is_hotnews) 
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?,?)
 ");
-$stmt->bind_param("isssssi", $category_id, $title, $slug, $content, $cover_image, $tags, $is_published);
-$stmt->execute();
+  $stmt->bind_param("isssssii", $category_id, $title, $slug, $content, $cover_image, $tags, $is_published,$is_hotnews);
+  $stmt->execute();
 
-// get inserted news_id
-$news_id = $conn->insert_id;
+  // get inserted news_id
+  $news_id = $conn->insert_id;
 
-// insert into counter
-$stmt2 = $conn->prepare("INSERT INTO newscounter (news_id, view_count) VALUES (?, 1)");
-$stmt2->bind_param("i", $news_id);
-$stmt2->execute();
+  // insert into counter
+  $stmt2 = $conn->prepare("INSERT INTO newscounter (news_id, view_count) VALUES (?, 1)");
+  $stmt2->bind_param("i", $news_id);
+  $stmt2->execute();
   header("Location: " . $_SERVER['PHP_SELF']);
   exit;
 }
@@ -59,6 +60,7 @@ if (isset($_POST['edit_news'])) {
   $category_id = $_POST['category_id'];
   $tags = $_POST['tags'];
   $is_published = isset($_POST['is_published']) ? 1 : 0;
+  $is_hotnews = isset($_POST['is_hotnews']) ? 1 : 0;
 
   // Keep old image
   $cover_image = $_POST['old_cover'];
@@ -70,8 +72,8 @@ if (isset($_POST['edit_news'])) {
     $cover_image = "media/thumbnail/" . $filename;
   }
 
-  $stmt = $conn->prepare("UPDATE news SET category_id=?, title=?, slug=?, content=?, cover_image=?, tags=?, is_published=? WHERE id=?");
-  $stmt->bind_param("isssssii", $category_id, $title, $slug, $content, $cover_image, $tags, $is_published, $id);
+  $stmt = $conn->prepare("UPDATE news SET category_id=?, title=?, slug=?, content=?, cover_image=?, tags=?, is_published=?, is_hotnews=? WHERE id=?");
+  $stmt->bind_param("isssssiii", $category_id, $title, $slug, $content, $cover_image, $tags, $is_published,$is_hotnews, $id);
   $stmt->execute();
   header("Location: " . $_SERVER['PHP_SELF']);
   exit;
@@ -199,7 +201,7 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                   <input type="file" name="cover_image" accept="image/*" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                 </div>
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Kateogri</label>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Kategori</label>
                   <select name="category_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" required>
                     <?php while ($cat = $categories->fetch_assoc()): ?>
                       <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
@@ -214,11 +216,18 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                   <input type="text" name="tags" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                 </div>
                 <div class="flex items-center pt-8">
-                  <label class="flex items-center cursor-pointer">
+                  <label class="flex items-center cursor-pointer m-5">
                     <input type="checkbox" name="is_published" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
                     <span class="ml-3 text-sm font-semibold text-gray-700">Publikasikan</span>
                   </label>
+
+                  <label class="flex items-center cursor-pointer m-5">
+                    <input type="checkbox" name="is_hotnews" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="ml-3 text-sm font-semibold text-gray-700">Hot News</span>
+                  </label>
+
                 </div>
+
               </div>
 
               <div class="pt-4">
@@ -352,6 +361,12 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                               <span class="ml-3 text-sm font-semibold text-gray-700">Published</span>
                             </label>
                           </div>
+                          <div>
+                            <label class="flex items-center cursor-pointer">
+                              <input type="checkbox" name="is_hotnews" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" <?= $n['is_hotnews'] ? 'checked' : '' ?>>
+                              <span class="ml-3 text-sm font-semibold text-gray-700">Hot News</span>
+                            </label>
+                          </div>
                         </div>
                         <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end space-x-3">
                           <button type="button" onclick="closeEditModal(<?= $n['id'] ?>)" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
@@ -376,16 +391,16 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
   </div>
   <script src="./jquery.min.js"></script>
   <script>
-$(function(){
-    var itemsPerPage = 10; // how many rows per page
-    var $items = $('table tbody tr'); // target rows
-    var totalItems = $items.length;
-    var totalPages = Math.ceil(totalItems / itemsPerPage);
-    var currentPage = 1;
+    $(function() {
+      var itemsPerPage = 10; // how many rows per page
+      var $items = $('table tbody tr'); // target rows
+      var totalItems = $items.length;
+      var totalPages = Math.ceil(totalItems / itemsPerPage);
+      var currentPage = 1;
 
-    function showPage(page){
-        if(page < 1) page = 1;
-        if(page > totalPages) page = totalPages;
+      function showPage(page) {
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
         currentPage = page;
 
         $items.hide();
@@ -394,27 +409,27 @@ $(function(){
         $items.slice(start, end).show();
 
         $('#pagination .page-number')
-            .text('Halaman ' + currentPage + ' of ' + totalPages);
-    }
+          .text('Halaman ' + currentPage + ' of ' + totalPages);
+      }
 
-    // Build pagination controls
-    $('#pagination').html(`
+      // Build pagination controls
+      $('#pagination').html(`
         <button id="prev-page" class="px-3 py-1 rounded bg-gray-200 mr-2">Sebelumnya</button>
         <span class="page-number px-3 py-1"></span>
         <button id="next-page" class="px-3 py-1 rounded bg-gray-200 ml-2">Selanjutnya</button>
     `);
 
-    showPage(1); // first page
+      showPage(1); // first page
 
-    // Button events
-    $('#pagination').on('click', '#prev-page', function(){
+      // Button events
+      $('#pagination').on('click', '#prev-page', function() {
         showPage(currentPage - 1);
-    });
-    $('#pagination').on('click', '#next-page', function(){
+      });
+      $('#pagination').on('click', '#next-page', function() {
         showPage(currentPage + 1);
+      });
     });
-});
-</script>
+  </script>
   <script>
     document.addEventListener("DOMContentLoaded", function() {
       // Auto-generate slug from title
