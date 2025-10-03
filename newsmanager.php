@@ -211,20 +211,36 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                <!-- <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-2">Tags (dipisahkan koma & opsional)</label>
                   <input type="text" name="tags" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
-                </div>
+                </div> -->
                 <div class="flex items-center pt-8">
-                  <label class="flex items-center cursor-pointer m-5">
-                    <input type="checkbox" name="is_published" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <span class="ml-3 text-sm font-semibold text-gray-700">Publikasikan</span>
-                  </label>
+                <label class="relative inline-flex items-center cursor-pointer m-5">
+  <input type="checkbox" name="is_published" class="sr-only peer">
+  <div
+    class="w-14 h-8 bg-gray-300 rounded-full peer peer-checked:bg-green-600 transition-colors duration-300">
+  </div>
+  <div
+    class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow
+           peer-checked:translate-x-6 transform transition-transform duration-300">
+  </div>
+  <span class="ml-4 text-sm font-semibold text-gray-700">Publikasikan</span>
+</label>
 
-                  <label class="flex items-center cursor-pointer m-5">
-                    <input type="checkbox" name="is_hotnews" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <span class="ml-3 text-sm font-semibold text-gray-700">Hot News</span>
-                  </label>
+
+                  <label class="relative inline-flex items-center cursor-pointer m-5">
+  <input type="checkbox" name="is_hotnews" class="sr-only peer">
+  <div
+    class="w-14 h-8 bg-gray-300 rounded-full peer peer-checked:bg-blue-600 transition-colors duration-300">
+  </div>
+  <div
+    class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow
+           peer-checked:translate-x-6 transform transition-transform duration-300">
+  </div>
+  <span class="ml-4 text-sm font-semibold text-gray-700">Hot&nbsp;News</span>
+</label>
+
 
                 </div>
 
@@ -271,6 +287,9 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                       <?= $n['is_published'] ?
                         '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Dipublikasikan</span>' :
                         '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Draft</span>' ?>
+                        <?= $n['is_hotnews'] ?
+                        '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-green-800">Hot News</span>' :
+                        '' ?>
                     </td>
                     <td class="px-6 py-4">
                       <div class="flex space-x-2">
@@ -279,7 +298,7 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                           </svg>
                         </button>
-                        <a href="?delete=<?= $n['id'] ?>" onclick="return confirm('Are you sure you want to delete this article?')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg transition-colors">
+                        <a href="?delete=<?= $n['id'] ?>" onclick="return confirm('Anda yakin mau menghapus artikel ini?')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg transition-colors">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                           </svg>
@@ -303,23 +322,23 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                           <input type="hidden" name="id" value="<?= $n['id'] ?>">
                           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                              <label class="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+                              <label class="block text-sm font-semibold text-gray-700 mb-2">Judul</label>
                               <input type="text" name="title" value="<?= htmlspecialchars($n['title']) ?>" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" required>
                             </div>
                             <div>
-                              <label class="block text-sm font-semibold text-gray-700 mb-2">Slug</label>
+                              <label class="block text-sm font-semibold text-gray-700 mb-2">Slug (URL)</label>
                               <input type="text" name="slug" value="<?= htmlspecialchars($n['slug']) ?>" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" required>
                             </div>
                           </div>
 
                           <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Content</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Isi Berita</label>
                             <textarea name="content" rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"><?= htmlspecialchars($n['content']) ?></textarea>
                           </div>
 
                           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                              <label class="block text-sm font-semibold text-gray-700 mb-2">Current Image</label>
+                              <label class="block text-sm font-semibold text-gray-700 mb-2">Thumbnail Sekarang</label>
                               <?php if (!empty($n['cover_image'])): ?>
                                 <img src="<?= htmlspecialchars($n['cover_image']) ?>" class="w-24 h-24 object-cover rounded-lg border border-gray-200 mb-2">
                               <?php else: ?>
@@ -330,14 +349,14 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                               <input type="hidden" name="old_cover" value="<?= htmlspecialchars($n['cover_image']) ?>">
                             </div>
                             <div>
-                              <label class="block text-sm font-semibold text-gray-700 mb-2">Change Image</label>
+                              <label class="block text-sm font-semibold text-gray-700 mb-2">Ubah Gambar</label>
                               <input type="file" name="cover_image" accept="image/*" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                             </div>
                           </div>
 
                           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                              <label class="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                              <label class="block text-sm font-semibold text-gray-700 mb-2">Kategori</label>
                               <select name="category_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" required>
                                 <?php
                                 $cats2 = $conn->query("SELECT * FROM categories ORDER BY name ASC");
@@ -349,16 +368,16 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                                 <?php endwhile; ?>
                               </select>
                             </div>
-                            <div>
+                            <!-- <div>
                               <label class="block text-sm font-semibold text-gray-700 mb-2">Tags</label>
                               <input type="text" name="tags" value="<?= htmlspecialchars($n['tags']) ?>" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
-                            </div>
+                            </div> -->
                           </div>
 
                           <div>
                             <label class="flex items-center cursor-pointer">
                               <input type="checkbox" name="is_published" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" <?= $n['is_published'] ? 'checked' : '' ?>>
-                              <span class="ml-3 text-sm font-semibold text-gray-700">Published</span>
+                              <span class="ml-3 text-sm font-semibold text-gray-700">Publikasikan</span>
                             </label>
                           </div>
                           <div>
@@ -374,7 +393,7 @@ $news = $conn->query("SELECT n.*, c.name AS category_name FROM news n JOIN categ
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                             </svg>
-                            Save Changes
+                            Simpan Perubahan
                           </button>
                         </div>
                       </form>
